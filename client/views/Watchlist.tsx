@@ -1,13 +1,12 @@
 import { useState, useEffect } from 'react';
 import { Bookmark } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import * as api from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
 import { MovieCard } from '../components/MovieCard';
 import { MovieDetails } from '../components/MovieDetails';
-import { RecommendationEngine } from '../lib/recommendationEngine';
 
 interface Movie {
-  id: string;
+  _id: string;
   title: string;
   description: string;
   genres: string[];
@@ -15,14 +14,8 @@ interface Movie {
   poster_url: string;
   director: string;
   cast_members: string[];
-  average_rating: number;
-  rating_count: number;
-}
-
-interface WatchlistItem {
-  movie_id: string;
-  added_at: string;
-  movies: Movie;
+  averageRating: number;
+  ratingCount: number;
 }
 
 export function Watchlist() {
@@ -38,36 +31,27 @@ export function Watchlist() {
 
   const loadWatchlist = async () => {
     setLoading(true);
-    const { data } = await supabase
-      .from('watchlist')
-      .select('movie_id, added_at, movies(*)')
-      .eq('user_id', user!.id)
-      .order('added_at', { ascending: false });
-
-    if (data) {
-      const movies = data.map((item: WatchlistItem) => item.movies);
-      setWatchlist(movies);
+    try {
+      const data = await api.getWatchlist();
+      setWatchlist(data.movies || []);
+    } catch (error) {
+      console.error('Failed to load watchlist:', error);
     }
-
     setLoading(false);
   };
 
-  const handleMovieClick = async (movie: Movie) => {
+  const handleMovieClick = (movie: Movie) => {
     setSelectedMovie(movie);
-    const engine = new RecommendationEngine();
-    await engine.initialize(user!.id);
-    const similar = engine.getSimilarMovies(movie.id);
-    setSimilarMovies(similar);
+    setSimilarMovies([]);
   };
 
   const handleRemoveFromWatchlist = async (movieId: string) => {
-    await supabase
-      .from('watchlist')
-      .delete()
-      .eq('user_id', user!.id)
-      .eq('movie_id', movieId);
-
-    setWatchlist((prev) => prev.filter((m) => m.id !== movieId));
+    try {
+      await api.removeFromWatchlist(movieId);
+      setWatchlist((prev) => prev.filter((m) => m._id !== movieId));
+    } catch (error) {
+      console.error('Failed to remove from watchlist:', error);
+    }
   };
 
   if (loading) {
@@ -103,10 +87,10 @@ export function Watchlist() {
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
             {watchlist.map((movie) => (
               <MovieCard
-                key={movie.id}
+                key={movie._id}
                 movie={movie}
                 isInWatchlist={true}
-                onToggleWatchlist={() => handleRemoveFromWatchlist(movie.id)}
+                onToggleWatchlist={() => handleRemoveFromWatchlist(movie._id)}
                 onClick={() => handleMovieClick(movie)}
               />
             ))}

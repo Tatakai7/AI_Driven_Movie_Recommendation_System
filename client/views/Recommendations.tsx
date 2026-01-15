@@ -1,13 +1,12 @@
 import { useState, useEffect } from 'react';
 import { Sparkles, RefreshCw } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import * as api from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
 import { MovieCard } from '../components/MovieCard';
 import { MovieDetails } from '../components/MovieDetails';
-import { RecommendationEngine } from '../lib/recommendationEngine';
 
 interface Movie {
-  id: string;
+  _id: string;
   title: string;
   description: string;
   genres: string[];
@@ -15,8 +14,8 @@ interface Movie {
   poster_url: string;
   director: string;
   cast_members: string[];
-  average_rating: number;
-  rating_count: number;
+  averageRating: number;
+  ratingCount: number;
 }
 
 export function Recommendations() {
@@ -33,47 +32,40 @@ export function Recommendations() {
 
   const loadRecommendations = async () => {
     setLoading(true);
-    const engine = new RecommendationEngine();
-    await engine.initialize(user!.id);
-    const recommended = engine.getRecommendations(20);
-    setRecommendations(recommended);
+    try {
+      const [recsData, watchlistData] = await Promise.all([
+        api.getRecommendations(20),
+        api.getWatchlist(),
+      ]);
 
-    await engine.updateUserPreferences(user!.id);
-
-    const watchlistResponse = await supabase
-      .from('watchlist')
-      .select('movie_id')
-      .eq('user_id', user!.id);
-
-    if (watchlistResponse.data) {
-      setWatchlistIds(new Set(watchlistResponse.data.map((w) => w.movie_id)));
+      setRecommendations(recsData.movies || []);
+      setWatchlistIds(new Set((watchlistData.movies || []).map((m: Movie) => m._id)));
+    } catch (error) {
+      console.error('Failed to load recommendations:', error);
     }
-
     setLoading(false);
   };
 
-  const handleMovieClick = async (movie: Movie) => {
+  const handleMovieClick = (movie: Movie) => {
     setSelectedMovie(movie);
-    const engine = new RecommendationEngine();
-    await engine.initialize(user!.id);
-    const similar = engine.getSimilarMovies(movie.id);
-    setSimilarMovies(similar);
+    setSimilarMovies([]);
   };
 
   const handleToggleWatchlist = async (movieId: string) => {
-    if (watchlistIds.has(movieId)) {
-      await supabase.from('watchlist').delete().eq('user_id', user!.id).eq('movie_id', movieId);
-      setWatchlistIds((prev) => {
-        const next = new Set(prev);
-        next.delete(movieId);
-        return next;
-      });
-    } else {
-      await supabase.from('watchlist').insert({
-        user_id: user!.id,
-        movie_id: movieId,
-      });
-      setWatchlistIds((prev) => new Set(prev).add(movieId));
+    try {
+      if (watchlistIds.has(movieId)) {
+        await api.removeFromWatchlist(movieId);
+        setWatchlistIds((prev) => {
+          const next = new Set(prev);
+          next.delete(movieId);
+          return next;
+        });
+      } else {
+        await api.addToWatchlist(movieId);
+        setWatchlistIds((prev) => new Set(prev).add(movieId));
+      }
+    } catch (error) {
+      console.error('Failed to toggle watchlist:', error);
     }
   };
 
@@ -124,10 +116,10 @@ export function Recommendations() {
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
             {recommendations.map((movie) => (
               <MovieCard
-                key={movie.id}
+                key={movie._id}
                 movie={movie}
-                isInWatchlist={watchlistIds.has(movie.id)}
-                onToggleWatchlist={() => handleToggleWatchlist(movie.id)}
+                isInWatchlist={watchlistIds.has(movie._id)}
+                onToggleWatchlist={() => handleToggleWatchlist(movie._id)}
                 onClick={() => handleMovieClick(movie)}
               />
             ))}
@@ -140,7 +132,7 @@ export function Recommendations() {
           movie={selectedMovie}
           onClose={() => setSelectedMovie(null)}
           onUpdate={loadRecommendations}
-          isInWatchlist={watchlistIds.has(selectedMovie.id)}
+          isInWatchlist={watchlistIds.has(selectedMovie._id)}
           similarMovies={similarMovies}
           onMovieSelect={handleMovieClick}
         />

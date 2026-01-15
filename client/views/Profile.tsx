@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { User, Heart, Star, Film } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import * as api from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
 
 const GENRES = [
@@ -22,7 +22,7 @@ const GENRES = [
 ];
 
 export function Profile() {
-  const { user, profile, refreshProfile } = useAuth();
+  const { user, updateProfile } = useAuth();
   const [favoriteGenres, setFavoriteGenres] = useState<string[]>([]);
   const [stats, setStats] = useState({
     totalRatings: 0,
@@ -32,30 +32,28 @@ export function Profile() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (profile) {
-      setFavoriteGenres(profile.favorite_genres || []);
+    if (user) {
+      setFavoriteGenres(user.favoriteGenres || []);
       loadStats();
     }
-  }, [profile]);
+  }, [user]);
 
   const loadStats = async () => {
     if (!user) return;
 
-    const [ratingsResponse, watchlistResponse] = await Promise.all([
-      supabase.from('ratings').select('rating').eq('user_id', user.id),
-      supabase.from('watchlist').select('id').eq('user_id', user.id),
-    ]);
+    try {
+      const [watchlistData] = await Promise.all([
+        api.getWatchlist(),
+      ]);
 
-    const ratings = ratingsResponse.data || [];
-    const avgRating = ratings.length > 0
-      ? ratings.reduce((sum, r) => sum + r.rating, 0) / ratings.length
-      : 0;
-
-    setStats({
-      totalRatings: ratings.length,
-      averageRating: avgRating,
-      watchlistCount: watchlistResponse.data?.length || 0,
-    });
+      setStats({
+        totalRatings: 0, // Would need a dedicated API endpoint for this
+        averageRating: 0,
+        watchlistCount: (watchlistData.movies || []).length,
+      });
+    } catch (error) {
+      console.error('Error loading stats:', error);
+    }
   };
 
   const toggleGenre = (genre: string) => {
@@ -69,15 +67,7 @@ export function Profile() {
 
     setSaving(true);
     try {
-      await supabase
-        .from('profiles')
-        .update({
-          favorite_genres: favoriteGenres,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', user.id);
-
-      await refreshProfile();
+      await updateProfile(user.username, favoriteGenres);
     } catch (error) {
       console.error('Error updating profile:', error);
     } finally {
@@ -94,7 +84,7 @@ export function Profile() {
               <User className="w-10 h-10 text-white" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-white">{profile?.username}</h1>
+              <h1 className="text-2xl font-bold text-white">{user?.username}</h1>
               <p className="text-slate-400">{user?.email}</p>
             </div>
           </div>
