@@ -115,6 +115,7 @@ export function MovieDetails({
             <button
               onClick={onClose}
               className="absolute top-4 right-4 z-10 p-2 bg-slate-900/80 backdrop-blur-sm rounded-full hover:bg-slate-900 transition-colors"
+              aria-label="Close Movie Details"
             >
               <X className="w-6 h-6 text-white" />
             </button>
@@ -200,6 +201,7 @@ export function MovieDetails({
                         onMouseLeave={() => setHoverRating(0)}
                         onClick={() => setUserRating(star)}
                         className="transition-transform hover:scale-110"
+                        aria-label="Rate {star} stars"
                       >
                         <Star
                           className={`w-8 h-8 ${

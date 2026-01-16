@@ -30,13 +30,13 @@ export function MovieCard({ movie, isInWatchlist, onToggleWatchlist, onClick }: 
       onClick={onClick}
       className="group bg-slate-800 rounded-lg overflow-hidden border border-slate-700 hover:border-blue-500 transition-all duration-300 cursor-pointer hover:shadow-xl hover:shadow-blue-500/20 hover:-translate-y-1"
     >
-      <div className="relative aspect-[2/3] overflow-hidden bg-slate-700">
+      <div className="relative aspect-2/3 overflow-hidden bg-slate-700">
         <img
           src={movie.poster_url}
           alt={movie.title}
           className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+        <div className="absolute inset-0 bg-linear-to-t from-slate-900 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
 
         {onToggleWatchlist && (
           <button
