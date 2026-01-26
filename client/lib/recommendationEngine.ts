@@ -137,12 +137,8 @@ export class RecommendationEngine {
   }
 
   async updateUserPreferences(userId: string) {
-    await supabase
-      .from('user_preferences')
-      .upsert({
-        user_id: userId,
-        preference_vector: this.genrePreferences,
-        updated_at: new Date().toISOString(),
-      });
+    // User preferences are managed by the backend ML system
+    // This method can be extended in the future to persist preferences to the API
+    // For now, preferences are calculated on-demand from user ratings
   }
 }

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { X, Star, Bookmark, BookmarkCheck } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import * as api from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
 import { MovieCard } from './MovieCard';
 
@@ -47,17 +47,17 @@ export function MovieDetails({
   const loadUserRating = async () => {
     if (!user) return;
 
-    const { data } = await supabase
-      .from('ratings')
-      .select('rating, review')
-      .eq('user_id', user.id)
-      .eq('movie_id', movie.id)
-      .maybeSingle();
-
-    if (data) {
-      setUserRating(data.rating);
-      setReview(data.review || '');
-    } else {
+    try {
+      const data = await api.getUserRating(movie.id);
+      if (data && data.rating) {
+        setUserRating(data.rating);
+        setReview(data.review || '');
+      } else {
+        setUserRating(0);
+        setReview('');
+      }
+    } catch (error) {
+      console.error('Failed to load user rating:', error);
       setUserRating(0);
       setReview('');
     }
@@ -68,15 +68,7 @@ export function MovieDetails({
 
     setLoading(true);
     try {
-      const { error } = await supabase.from('ratings').upsert({
-        user_id: user.id,
-        movie_id: movie.id,
-        rating: userRating,
-        review: review,
-        updated_at: new Date().toISOString(),
-      });
-
-      if (error) throw error;
+      await api.rateMovie(movie.id, userRating);
       onUpdate();
     } catch (error) {
       console.error('Error saving rating:', error);
@@ -90,16 +82,9 @@ export function MovieDetails({
 
     try {
       if (isInWatchlist) {
-        await supabase
-          .from('watchlist')
-          .delete()
-          .eq('user_id', user.id)
-          .eq('movie_id', movie.id);
+        await api.removeFromWatchlist(movie.id);
       } else {
-        await supabase.from('watchlist').insert({
-          user_id: user.id,
-          movie_id: movie.id,
-        });
+        await api.addToWatchlist(movie.id);
       }
       onUpdate();
     } catch (error) {
