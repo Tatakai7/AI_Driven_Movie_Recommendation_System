@@ -1,6 +1,6 @@
-import { MongoClient, Db } from 'mongodb';
+import { MongoClient } from 'mongodb';
 
-let db: Db;
+let db;
 
 export async function connectDB() {
   const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/movie-recommendation';
